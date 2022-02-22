@@ -16,19 +16,21 @@ class ImportManagerWindow(QDialog):
         confirm_btn.clicked.connect(self.confirm_input)
 
         # words table
-        words_tbl.setColumnCount(4)
+        words_tbl.setColumnCount(6)
         words_tbl.setRowCount(len(self.words))
-        words_tbl.setHorizontalHeaderLabels(["Add", "Word", "Definition", "Blacklist"])
+        words_tbl.setHorizontalHeaderLabels(["Add", "Word", "Reading", "Definition", "POS", "Blacklist"])
 
-        for w_n, (word, word_def) in enumerate(self.words.items()):
-            add_checkbox = "X" if word_def else " "
-            blacklist_checkbox = "X" if not word_def else " "
+        for w_n, word in enumerate(self.words):
+            add_checkbox = "X" if word["definition"] else " "
+            blacklist_checkbox = "X" if not word["definition"] else " "
             words_tbl.setItem(w_n, 0, QTableWidgetItem(add_checkbox))
-            words_tbl.setItem(w_n, 1, QTableWidgetItem(word))
+            words_tbl.setItem(w_n, 1, QTableWidgetItem(word["word"]))
+            words_tbl.setItem(w_n, 2, QTableWidgetItem(word["reading"]))
             words_tbl.setItem(
-                w_n, 2, QTableWidgetItem(word_def)
+                w_n, 3, QTableWidgetItem(word["definition"])
             )  # TODO: shows HTML not just def :O
-            words_tbl.setItem(w_n, 3, QTableWidgetItem(blacklist_checkbox))
+            words_tbl.setItem(w_n, 4, QTableWidgetItem(word["pos"]))
+            words_tbl.setItem(w_n, 5, QTableWidgetItem(blacklist_checkbox))
 
         # deck chooser
         self.combo_box = QComboBox(self)

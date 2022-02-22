@@ -84,13 +84,14 @@ def get_deck_dict() -> dict:
     return deck_dict
 
 
-def add_to_collection(word_defs: dict, deck_id: int) -> None:
+def add_to_collection(word_defs, deck_id: int) -> None:
     """Adds valid words to the collection"""
-    working_words = {w: d for (w, d) in word_defs.items() if d}
-    for word, definition in working_words.items():
-        note = mw.col.newNote("Basic")  # type: ignore
-        note["Front"] = word
-        note["Back"] = definition
+    for word in word_defs:
+        note = mw.col.newNote("Kobo")  # type: ignore
+        note["Word"] = word["word"]
+        note["Reading"] = word["reading"]
+        note["Definition"] = word["definition"]
+        note["Pos"] = word["pos"]
         note.tags.append("koboanki")
         # mw.col.addNote(note)
         mw.col.add_note(note, deck_id)  # type: ignore
@@ -169,7 +170,7 @@ def get_words(config):
         showInfo("Can't access server, faulty internet connection?")
         return
 
-    # find newwords, get definitions, add to collection
+    # find new words, get definitions, add to collection
     new_wordlist = get_new_wordlist(wordlist)
     not_blacklisted = [word for word in new_wordlist if word not in blacklist]
     word_defs = get_definitions(not_blacklisted, config)
@@ -177,7 +178,7 @@ def get_words(config):
     return word_defs
 
 
-### Acctual utils
+### Actual utils
 
 
 def normalise_word(word: str) -> str:
@@ -192,11 +193,13 @@ def get_link(language_code: str, word: str) -> str:
 
 def get_new_wordlist(kobo_wordlist: list) -> list:
     """Returns a list of only words not already added to anki."""
+    print("kobo_wordlist", kobo_wordlist)
     ids = mw.col.find_notes("")
     anki_wordlist = [mw.col.getNote(id_).items()[0][1] for id_ in ids]
     new_wordlist = [word for word in kobo_wordlist if word not in anki_wordlist]
     # new_wordlist = ["hi", "hello", "bye", "test", "double", "triple"]
-    new_wordlist = new_wordlist[:3]  # TEMP
+    # new_wordlist = new_wordlist[:3]  # TEMP
+    print("new_wordlist", new_wordlist)
     return new_wordlist
 
 
@@ -217,7 +220,7 @@ def get_definitions(wordlist: list, config: dict) -> dict:
         worker.start()
     queue.join()
 
-    return {word: definition for word, definition in zip(wordlist, definitions)}
+    return definitions
 
 
 def queue_handler(queue: Queue, definitions: list, config: dict) -> bool:
@@ -235,6 +238,7 @@ def queue_handler(queue: Queue, definitions: list, config: dict) -> bool:
                 break
 
         definitions[work[0]] = definition
+        print(definition)
         queue.task_done()
     return True
 
@@ -243,8 +247,16 @@ def get_word_definition(word: str, lang: str, dl_timeout: int, n_retries: int) -
     """Return the definition of a word that's passed to it. Empty if no defs."""
     response = []
     word_text = ""
+    reading = ""
+    pos = ""
+    definition = ""
+    example = ""
     try:
-        response = requests.get(get_link(lang, word), timeout=dl_timeout).json()
+        if lang == "ja":
+            response = requests.get(f"https://jisho.org/api/v1/search/words?keyword={word}", timeout=dl_timeout).json()
+            # print(response["data"])
+        else:
+            response = requests.get(get_link(lang, word), timeout=dl_timeout).json()
     except requests.exceptions.ConnectionError:  # TODO: test this
         if n_retries > 1:
             word_text = get_word_definition(word, lang, dl_timeout, n_retries - 1)
@@ -253,27 +265,33 @@ def get_word_definition(word: str, lang: str, dl_timeout: int, n_retries: int) -
         return word_text
 
     try:
-        for word_def in response:
-            word_text = ""
-            definition = ""
-
-            phonetics = word_def["phonetics"]
-            meanings = word_def["meanings"]
-
-            phonetics = [phoenetic["text"] for phoenetic in phonetics]
-            word_text = f"<small>{str(phonetics)}</small>"
-
-            for meaning_n, meaning in enumerate(meanings):
-                part_of_speech = meaning["partOfSpeech"]
-                definition = meaning["definitions"][0]["definition"]
-                example = meaning["definitions"][0]["example"]
-
-                word_text += f"<br><b>{meaning_n+1}. </b> <small>{part_of_speech} - </small>{definition} <i> {example} </i>"
-
-            # sometimes there's pronounciation info but not definition
-            if definition == "":
+        if lang == "ja":
+            reading = "、".join([jp["reading"] for jp in response["data"][0]["japanese"]])
+            definition = ", ".join(response["data"][0]["senses"][0]["english_definitions"])
+            pos = ", ".join(response["data"][0]["senses"][0]["parts_of_speech"])
+        else:
+            for word_def in response:
                 word_text = ""
+                definition = ""
+
+                phonetics = word_def["phonetics"]
+                definition = word_def["meanings"]
+                example = definition[0]["definitions"][0]["example"]
+
+                phonetics = [phoenetic["text"] for phoenetic in phonetics]
+                word_text = f"<small>{str(phonetics)}</small>"
+
+                # for meaning_n, meaning in enumerate(meanings):
+                #     pos = meaning["partOfSpeech"]
+                #     definition = meaning["definitions"][0]["definition"]
+                #     example = meaning["definitions"][0]["example"]
+
+                    # word_text += f"<br><b>{meaning_n+1}. </b> <small>{part_of_speech} - </small>{definition} <i> {example} </i>"
+
+                # sometimes there's pronounciation info but not definition
+                if definition == "":
+                    word_text = ""
 
     except:
         word_text = ""
-    return word_text
+    return {"word": word, "reading": reading, "definition": definition, "pos": pos, "example": example}
