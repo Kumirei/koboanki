@@ -87,8 +87,10 @@ def get_deck_dict() -> dict:
 def add_to_collection(word_defs, deck_id: int) -> None:
     """Adds valid words to the collection"""
     for word in word_defs:
-        note = mw.col.newNote("Kobo")  # type: ignore
+        model = mw.col.models.by_name("Kobo")
+        note = mw.col.new_note(model)  # type: ignore
         note["Word"] = word["word"]
+        note["Expression"] = word["expression"]
         note["Reading"] = word["reading"]
         note["Definition"] = word["definition"]
         note["Pos"] = word["pos"]
@@ -204,10 +206,10 @@ def get_new_wordlist(kobo_wordlist: list) -> list:
 
 
 def get_definitions(wordlist: list, config: dict) -> dict:
-    """Concurently find defintions for all words"""
+    """Concurrently find defintions for all words"""
     queue = Queue(maxsize=0)
     num_theads = min(config["dl_threads"], len(wordlist))
-    definitions = [{} for _ in wordlist]
+    definitions = []
     for i in range(len(wordlist)):
         queue.put((i, wordlist[i]))
 
@@ -234,10 +236,12 @@ def queue_handler(queue: Queue, definitions: list, config: dict) -> bool:
             definition = get_word_definition(
                 word, language, config["dl_timeout"], config["dl_retries"]
             )
-            if definition != "":
-                break
+            break
+        if not definition:
+            queue.task_done()
+            continue
 
-        definitions[work[0]] = definition
+        definitions.append(definition)
         print(definition)
         queue.task_done()
     return True
@@ -251,24 +255,22 @@ def get_word_definition(word: str, lang: str, dl_timeout: int, n_retries: int) -
     pos = ""
     definition = ""
     example = ""
+    expression = ""
     try:
         if lang == "ja":
             response = requests.get(f"https://jisho.org/api/v1/search/words?keyword={word}", timeout=dl_timeout).json()
             # print(response["data"])
         else:
             response = requests.get(get_link(lang, word), timeout=dl_timeout).json()
-    except requests.exceptions.ConnectionError:  # TODO: test this
-        if n_retries > 1:
-            word_text = get_word_definition(word, lang, dl_timeout, n_retries - 1)
-        else:
-            response = ""
-        return word_text
+    except:  # TODO: test this
+        return False
 
     try:
         if lang == "ja":
             reading = "、".join([jp["reading"] for jp in response["data"][0]["japanese"]])
             definition = ", ".join(response["data"][0]["senses"][0]["english_definitions"])
             pos = ", ".join(response["data"][0]["senses"][0]["parts_of_speech"])
+            expression = response["data"][0]["slug"]
         else:
             for word_def in response:
                 word_text = ""
@@ -294,4 +296,4 @@ def get_word_definition(word: str, lang: str, dl_timeout: int, n_retries: int) -
 
     except:
         word_text = ""
-    return {"word": word, "reading": reading, "definition": definition, "pos": pos, "example": example}
+    return {"word": word, "reading": reading, "definition": definition, "pos": pos, "example": example, "expression": expression}

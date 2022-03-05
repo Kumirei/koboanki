@@ -18,14 +18,16 @@ class ImportManagerWindow(QDialog):
         # words table
         words_tbl.setColumnCount(6)
         words_tbl.setRowCount(len(self.words))
-        words_tbl.setHorizontalHeaderLabels(["Add", "Word", "Reading", "Definition", "POS", "Blacklist"])
+        words_tbl.setHorizontalHeaderLabels(["Add", "Word", "Expression", "Reading", "Definition", "POS", "Blacklist"])
 
         for w_n, word in enumerate(self.words):
+            print(w_n, word)
             add_checkbox = "X" if word["definition"] else " "
             blacklist_checkbox = "X" if not word["definition"] else " "
             words_tbl.setItem(w_n, 0, QTableWidgetItem(add_checkbox))
             words_tbl.setItem(w_n, 1, QTableWidgetItem(word["word"]))
-            words_tbl.setItem(w_n, 2, QTableWidgetItem(word["reading"]))
+            words_tbl.setItem(w_n, 2, QTableWidgetItem(word["expression"]))
+            words_tbl.setItem(w_n, 3, QTableWidgetItem(word["reading"]))
             words_tbl.setItem(
                 w_n, 3, QTableWidgetItem(word["definition"])
             )  # TODO: shows HTML not just def :O
