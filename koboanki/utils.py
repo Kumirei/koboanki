@@ -267,7 +267,7 @@ def get_word_definition(word: str, lang: str, dl_timeout: int, n_retries: int) -
 
     try:
         if lang == "ja":
-            reading = "、".join([jp["reading"] for jp in response["data"][0]["japanese"]])
+            reading = "、".join({val: None for val in [jp["reading"] for jp in response["data"][0]["japanese"]]}.keys())
             definition = ", ".join(response["data"][0]["senses"][0]["english_definitions"])
             pos = ", ".join(response["data"][0]["senses"][0]["parts_of_speech"])
             expression = response["data"][0]["slug"]
