@@ -13,7 +13,6 @@ from string import punctuation
 
 ### IO
 
-
 def get_config() -> dict:
     """Opens and returns the config. TODO: link with the verifcation function."""
     config = mw.addonManager.getConfig(__name__)
@@ -173,11 +172,32 @@ def get_words(config):
         return
 
     # find new words, get definitions, add to collection
-    new_wordlist = get_new_wordlist(wordlist)
-    not_blacklisted = [word for word in new_wordlist if word not in blacklist]
-    word_defs = get_definitions(not_blacklisted, config)
+    # Get definitions
+    word_defs = get_definitions(wordlist, config) # [{word, reading, definition, pos, example, expression}]
+    # Filter out duplicates and pre-existing words
+    ids = mw.col.find_notes("note:Kobo")
+    anki_wordlist = [mw.col.getNote(id_).items()[0][1] for id_ in ids] # Get expression of all existing notes
+    unique_words = set(anki_wordlist)
+    unique_defs = []
+    for word_def in word_defs:
+        if word_def["expression"] == "": # Filter out words which could not be defined
+            continue
+        if word_def["expression"] in unique_words: # Avoid duplicates
+            continue
+        unique_defs.append(word_def) # Keep this word
+        unique_words.add(word_def["expression"])
 
-    return word_defs
+    # new_wordlist = get_new_wordlist(wordlist)
+    # not_blacklisted = [word for word in new_wordlist if word not in blacklist]
+    print('Wordlist', len(wordlist))
+    # print('new wordlist', len(new_wordlist))
+    print('blacklisted', len(blacklist))
+    print('unique words', len(unique_words))
+    print('new words', len(unique_defs))
+    # print('new words', unique_defs)
+    # print('not blacklisted', len(not_blacklisted))
+
+    return unique_defs
 
 
 ### Actual utils
@@ -195,13 +215,9 @@ def get_link(language_code: str, word: str) -> str:
 
 def get_new_wordlist(kobo_wordlist: list) -> list:
     """Returns a list of only words not already added to anki."""
-    print("kobo_wordlist", kobo_wordlist)
-    ids = mw.col.find_notes("")
+    ids = mw.col.find_notes("note:Kobo")
     anki_wordlist = [mw.col.getNote(id_).items()[0][1] for id_ in ids]
     new_wordlist = [word for word in kobo_wordlist if word not in anki_wordlist]
-    # new_wordlist = ["hi", "hello", "bye", "test", "double", "triple"]
-    # new_wordlist = new_wordlist[:3]  # TEMP
-    print("new_wordlist", new_wordlist)
     return new_wordlist
 
 
@@ -242,7 +258,7 @@ def queue_handler(queue: Queue, definitions: list, config: dict) -> bool:
             continue
 
         definitions.append(definition)
-        print(definition)
+        # print(definition)
         queue.task_done()
     return True
 

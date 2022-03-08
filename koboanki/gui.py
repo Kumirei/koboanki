@@ -29,10 +29,10 @@ class ImportManagerWindow(QDialog):
             words_tbl.setItem(w_n, 2, QTableWidgetItem(word["expression"]))
             words_tbl.setItem(w_n, 3, QTableWidgetItem(word["reading"]))
             words_tbl.setItem(
-                w_n, 3, QTableWidgetItem(word["definition"])
+                w_n, 4, QTableWidgetItem(word["definition"])
             )  # TODO: shows HTML not just def :O
-            words_tbl.setItem(w_n, 4, QTableWidgetItem(word["pos"]))
-            words_tbl.setItem(w_n, 5, QTableWidgetItem(blacklist_checkbox))
+            words_tbl.setItem(w_n, 5, QTableWidgetItem(word["pos"]))
+            words_tbl.setItem(w_n, 6, QTableWidgetItem(blacklist_checkbox))
 
         # deck chooser
         self.combo_box = QComboBox(self)
